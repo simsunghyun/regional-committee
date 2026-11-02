@@ -45,6 +45,43 @@ export function start(data,config){
   const max=Math.max(1,...values.map(v=>v.sum));
   return '<figure class="compareFigure"><figcaption>국비 규모 비교 <small>요약서 기재 금액 · 억원</small></figcaption>'+values.map(({name,known,sum})=>'<div class="compareRow"><span>'+esc(name)+'</span><i><b style="width:'+100*sum/max+'%"></b></i>'+button(known.length?fmt(sum):'미기재',known)+'</div>').join('')+'</figure>';
  }
+ function regionalDetails(pairs,renderGroup){
+  return pairs.map(([name,rows])=>'<details><summary>'+esc(name)+' · '+fmt(rows.length)+'건</summary>'+renderGroup(rows)+'</details>').join('');
+ }
+ function shareTable(pairs){
+  const total=(rows,key)=>rows.reduce((v,p)=>v+(p[key]??0),0);
+  const headers=['권역','실천과제 수 비중','총사업비 비중','국비요구액 비중','총사업비(광역SOC 제외)','국비요구액(광역SOC 제외)'];
+  const cells=pairs.map(([region,rows])=>{
+   const net=rows.filter(p=>!p.soc);
+   const share=k=>{const known=rows.filter(p=>p[k]!=null);return button(known.length?fmt(100*total(rows,k)/total(all,k))+'%':'미기재',known);};
+   const amount=k=>{const known=net.filter(p=>p[k]!=null);return button(known.length?fmt(total(known,k)):'미기재',known);};
+   return [esc(region),button(fmt(100*rows.length/all.length)+'%',rows),share('whole'),share('national'),amount('whole'),amount('national')];
+  });
+  return '<p>비중은 광역SOC를 포함한 전국 합계 대비 권역의 비율입니다. 오른쪽 두 열은 광역SOC 과제를 제외한 기재 금액입니다. 금액 단위는 억원입니다.</p>'+overviewTable(headers,cells);
+ }
+ function overviewTable(headers,rows){
+  return '<table class="tables"><thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+ }
+ function areaWording(p){
+  const text=p.about||'';
+  if(/(?:권역|도내|도|시·도|제주|강원|전북|부울경)\s*(?:전역|전체|전 지역)/.test(text))return '전역·전체 표현';
+  if(/(?:사업\s*위치|대상\s*지역|공간적?\s*범위)\s*[:：]|\(위치\)/.test(text))return '위치·대상 지역 명시';
+  return '해당 표현 미확인';
+ }
+ function overviewBlocks(reg){
+  const axes={'양쪽 연결':'고용 상위 업종과 성장엔진 모두 해당','기존 산업만':'고용 상위 업종만 해당','성장엔진만':'성장엔진만 해당','양쪽 미확인':'두 기준 모두 미확인'};
+  const soc=all.filter(p=>p.soc);
+  return section('권역별 발전전략 총 사업 수와 예산 비중',shareTable(reg))
+   +section('기 발표된 성장엔진과 권역별 발전전략 과제 연계성 비교','<p>경제권 실천과제의 요약서에서 해당 권역의 성장엔진과 고용 상위 업종에 관련된 문구를 각각 확인했습니다.</p>'+regionalDetails(reg,rows=>table(groups(rows.filter(p=>p.economic),'axis').map(([k,v])=>[axes[k]||k,v]))))
+   +section('권역별 전략과제·실천과제 수 및 예산 비교','<p>전략과제 수는 같은 권역·범주의 과제번호 첫 구간을 기준으로 셌습니다. 번호가 없는 실천과제도 실천과제 수에는 포함합니다.</p>'+comparison(reg)+table(reg))
+   +section('참고) 권역별 기존 산업 고용 비중 1위 업종 비교','<p>2024년 전국사업체조사 기준, 권역 전체 종사자 중 해당 산업 대분류 종사자의 비중입니다.</p>'+overviewTable(['권역','고용 비중 1위 업종','권역 종사자 대비 비중'],reg.map(([region])=>{const top=data[region].jobs[0];return [esc(region),esc(top[0]),fmt(top[1])+'%'];})))
+   +section('권역별 경제권·생활권·행재정 범주별 과제·예산 비교',regionalDetails(reg,rows=>table(groups(rows,'category'))))
+   +section('권역별 부처·기관별 국비 요구액 비교',regionalDetails(reg,rows=>breakdown(rows)))
+   +section('범주별 소관 부처·기관 및 예산 상세 보기',regionalDetails(reg,rows=>regionalDetails(groups(rows,'category'),subset=>breakdown(subset))))
+   +section('권역별 사업의 공간 범위 비교','<p>위원 화면에 등록된 사업 요약에서 권역 전역·전체 표현이나 위치·대상 지역의 명시 여부를 비교합니다. 전역 표현은 사업 효과에 대한 설명도 포함할 수 있어 실제 시행 지역과 다를 수 있습니다. 해당 표현이 없는 과제는 미확인으로 표시합니다.</p>'+regionalDetails(reg,rows=>table(['전역·전체 표현','위치·대상 지역 명시','해당 표현 미확인'].map(k=>[k,rows.filter(p=>areaWording(p)===k)]))))
+   +section('광역SOC 사업 별도 분류',table([['전체 실천과제',all],['광역SOC 사업',soc],['광역SOC 제외 사업',all.filter(p=>!p.soc)]]))
+   +section('권역별 광역SOC 사업 비교',comparison(reg.map(([k,v])=>[k,v.filter(p=>p.soc)]))+table(reg.map(([k,v])=>[k,v.filter(p=>p.soc)])));
+ }
  function render(){selections=[];const [route='overview',raw='']=location.hash.slice(1).split('/'),r=config.regions.find(k=>k===decodeURIComponent(raw))||config.regions[0],g=all.filter(p=>p.region===r);
  const tabs='<p class="sumTabs">'+config.regions.map(k=>'<a class="tag" href="#'+route+'/'+encodeURIComponent(k)+'">'+esc(k)+'</a>').join(' ')+'</p>';
  const reg=config.regions.map(k=>[k,all.filter(p=>p.region===k)]);
@@ -56,7 +93,7 @@ export function start(data,config){
  else if(route==='errors'){title='오류 과제';body='';}
  else if(route==='search'){title='사업 검색';body=section('실천과제 찾기','<label>사업명·권역·분야·과제번호·기관·성장엔진 등으로 검색 <input id="lookup" type="search"></label><p id="hits"></p>');}
  else if(route==='method'){title='집계 기준';body=section('자료와 단위','<p>7개 권역 붙임4 요약서의 실천과제 행을 집계했습니다. ‘상위 과제번호 수’는 같은 권역·분야에서 과제번호의 첫 구간이 같은 과제를 한 묶음으로 센 값입니다. 예를 들어 1-2-3과 1-4-1은 한 묶음입니다. 번호가 없는 과제도 실천과제 수에는 포함합니다.</p><p>총사업비와 국비는 요약서의 억원 표기를 읽습니다. 국비는 사업기간 기준이며 2027~2032년으로 환산하지 않습니다. 글자 겹치기 재원 표시를 복원했습니다. 총액을 넘는 국비도 원문 기재 합계에 포함합니다. 하한·잠정·부지조성비는 기재 성격을 표시합니다. 숫자를 확정할 수 없는 값이나 선행기획비만 적힌 사업 총액은 보류합니다. 비예산·미기재와 보류는 합계에서 제외합니다.</p><p>성장엔진과 정주여건은 제출 분야를 유지하고 사업명·요약 내용으로 분류했습니다. 광역 SOC는 생활권 사업명에서 철도망·광역도로·공항 등 시설 사업을 식별합니다. 기추진과 신규는 요약서에 해당 문구가 있을 때만 구분합니다.</p>')+section('국비 기재 상태별 사업 수와 예산',table(groups(all,'nationalStatus')))+section('총사업비 기재 상태별 사업 수와 예산',table(groups(all,'wholeStatus')));}
- else{title='전국 발전계획 개요';body=section('권역별 성장엔진','<div class="atlasGrid"><div class="atlasMap">'+document.querySelector('#atlas').innerHTML+'</div><div class="atlasKey">'+config.regions.map(k=>'<a href="#regions/'+encodeURIComponent(k)+'"><strong>'+esc(k)+'</strong><span>'+esc(config.engines[k].join(' · '))+'</span></a>').join('')+'</div></div>')+section( '전국 분야별 사업 수와 예산',table([['전국',all],...groups(all,'category')]))+section('7개 권역의 사업 수와 예산',comparison(reg)+table(reg))+breakdown(all);}
+ else{title='전국 발전계획 개요';body=section('권역별 성장엔진 지도','<div class="atlasGrid"><div class="atlasMap">'+document.querySelector('#atlas').innerHTML+'</div><div class="atlasKey">'+config.regions.map(k=>'<a href="#regions/'+encodeURIComponent(k)+'"><strong>'+esc(k)+'</strong><span>'+esc(config.engines[k].join(' · '))+'</span></a>').join('')+'</div></div>')+overviewBlocks(reg);}
  if(route==='errors'){const scope=all; const exceptions=scope.filter(p=>p.errors?.length);const nums=k=>{const known=scope.filter(p=>p[k]!=null),reviewed=known.filter(p=>!(p.errorAmountFields||[]).includes(k));return '<p>'+esc(k==='national'?'국비':'총사업비')+'　원문 기재 합계 '+button(fmt(known.reduce((s,p)=>s+p[k],0))+'억원',known)+' · 해당 항목의 금액 오류분을 뺀 합계 '+button(fmt(reviewed.reduce((s,p)=>s+p[k],0))+'억원',reviewed)+'</p>';};body=section('전국 기재 금액 합계와 오류 과제 목록',button('오류 과제 '+exceptions.length+'건',exceptions)+nums('whole')+nums('national')+'<p>번호·사업명 오류는 예산에서 차감하지 않습니다. 재원 합계 불일치는 비교 합계에서 양쪽 금액을, 국비가 총사업비보다 크면 국비만 제외합니다.</p>')+section('과제별 오류 사유 · '+exceptions.length+'건',errorRows(exceptions));}
  main.innerHTML='<h1>'+esc(title)+'</h1><p>붙임4 실천과제 요약서 기준 · 금액은 억원 · 밑줄이 있는 수치를 누르면 해당 사업 목록이 열립니다</p>'+body;
  if(route==='regions'||!route||route==='overview')main.querySelector('h1').insertAdjacentHTML('afterend',keyFigures(route==='regions'?g:all));
