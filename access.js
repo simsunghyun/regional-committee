@@ -2,7 +2,7 @@ import {auth,db,doc,login,signOut,isOwner,isAllowed,onAuthStateChanged,onSnapsho
 let running=false,version=0,stopWatch=()=>{};
 const panel=document.querySelector('#access-panel');
 function screen(title,message,user){document.body.classList.add('locked');panel.hidden=false;panel.replaceChildren();const card=document.createElement('div');card.className='login-card';const logo=document.createElement('img');logo.src='committee-logo.svg';logo.alt='지방시대위원회';const h=document.createElement('h1');h.textContent=title;const p=document.createElement('p');p.textContent=message;const button=document.createElement('button');button.className='primary';button.textContent=user?'다른 계정으로 로그인':'Google 계정으로 로그인';button.onclick=async()=>{button.disabled=true;try{if(user){await signOut(auth);return;}await login();}catch(e){p.textContent=errorText(e);}finally{button.disabled=false;}};card.append(logo,h,p,button);if(user){const retry=document.createElement('button');retry.textContent='다시 연결';retry.onclick=()=>location.reload();card.append(retry);}if(isOwner(user)){const admin=document.createElement('a');admin.href='admin.html';admin.textContent='이용자·자료 관리';card.append(admin);}panel.append(card);}
-const expires=Date.parse('2026-11-02T20:00:00+09:00');
+const expires=Date.parse('2027-07-03T00:00:00+09:00');
 async function circulation(token){
  const expired=()=>Date.now()>=expires;
  const close=()=>{document.body.classList.add('locked');location.reload();};
@@ -11,8 +11,9 @@ async function circulation(token){
   if(token!==version)return;
   if(expired())return close();
   module.start(data,cfg);running=true;panel.hidden=true;document.body.classList.remove('locked');
-  document.querySelector('#account').textContent='임시 회람 · 11월 2일 한국시간 20:00 종료';
-  setTimeout(close,Math.max(0,expires-Date.now()));
+  document.querySelector('#account').textContent='임시 회람 · 2027년 7월 3일 00:00(한국시간) 종료';
+  function scheduleClose(){const remaining=expires-Date.now();if(remaining<=0){close();return;}setTimeout(scheduleClose,Math.min(remaining,86400000));}
+  scheduleClose();
   for(const event of ['focus','pageshow','visibilitychange'])window.addEventListener(event,()=>{if(expired())close();});
  }catch{
   if(token===version)screen('권역별 발전계획','임시 회람 자료를 열 수 없습니다. 승인된 Google 계정으로 로그인해 주세요.');
