@@ -38,7 +38,7 @@ export function start(data,config){
  function keyFigures(rows){
   const metric=(name,value,subset,unit)=>'<div><small>'+name+'</small><strong>'+button(fmt(value),subset)+'</strong><span>'+unit+'</span></div>';
   const money=(k,label)=>{const known=rows.filter(p=>p[k]!=null);return metric(label,known.length?known.reduce((v,p)=>v+p[k],0):null,known,'억원');};
-  return '<div class="keyFigures">'+metric('실천과제',rows.length,rows,'건')+money('총사업비','원문 기재 총사업비')+money('national','원문 기재 국비')+'</div>';
+  return '<div class="keyFigures">'+metric('실천과제',rows.length,rows,'건')+money('whole','원문 기재 총사업비')+money('national','원문 기재 국비')+'</div>';
  }
  function comparison(pairs){
   const values=pairs.map(([name,g])=>{const known=g.filter(p=>p.national!=null);return {name,known,sum:known.reduce((a,p)=>a+p.national,0)};});
