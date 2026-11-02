@@ -8,7 +8,7 @@ onAuthStateChanged(auth,async user=>{
  try{
   if(!await isAllowed(user)){screen('등록되지 않은 계정입니다',user.email+' 계정의 이용 등록을 관리자에게 요청해 주세요.',user);return;}
   screen('자료를 불러오고 있습니다','위원 열람용 분석 대시보드를 준비하고 있습니다.',user);
-  const [data,config,module]=await Promise.all([readJSON('data/results.js'),fetch('dashboard-config.json').then(r=>{if(!r.ok)throw Error('설정 파일을 읽지 못했습니다.');return r.json();}),import('./dashboard-app.js?v=summary-errors-2')]);
+  const [data,config,module]=await Promise.all([readJSON('data/results.js'),fetch('dashboard-config.json').then(r=>{if(!r.ok)throw Error('설정 파일을 읽지 못했습니다.');return r.json();}),import('./dashboard-app.js?v=summary-errors-tab3')]);
   if(token!==version)return;
   module.start(data,config);running=true;document.body.classList.remove('locked');panel.hidden=true;
   const account=document.querySelector('#account'),email=document.createElement('span'),out=document.createElement('button');email.textContent=user.email;out.textContent='로그아웃';out.onclick=()=>signOut(auth);account.replaceChildren(email,out);
@@ -17,4 +17,5 @@ onAuthStateChanged(auth,async user=>{
   }
  }catch(error){if(token===version)screen('자료 연결을 확인해 주세요',errorText(error),user);}
 });
+
 
