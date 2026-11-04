@@ -14,7 +14,7 @@ try {
 
     throw Error('위원 전용 홈페이지에는 별도 Firebase 프로젝트가 필요합니다.');
 
-  await import(admin ? './admin.js' : './access.js?v=circulation20270703');
+  await import(admin ? './admin.js' : './access.js?v=login20261104');
 
 } catch (error) {
 
